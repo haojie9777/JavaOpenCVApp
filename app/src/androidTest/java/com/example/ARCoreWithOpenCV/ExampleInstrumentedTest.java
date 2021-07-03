@@ -1,4 +1,4 @@
-package com.example.opencvpleasework;
+package com.example.ARCoreWithOpenCV;
 
 import android.content.Context;
 

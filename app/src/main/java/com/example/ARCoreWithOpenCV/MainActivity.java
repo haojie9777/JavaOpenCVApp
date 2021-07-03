@@ -1,4 +1,4 @@
-package com.example.opencvpleasework;
+package com.example.ARCoreWithOpenCV;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -41,6 +41,8 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
                 {
                     Log.i(TAG, "OpenCV loaded successfully");
                     mOpenCvCameraView.enableView();
+                    //limit resolution for faster processing
+                    mOpenCvCameraView.setMaxFrameSize(640,480);
                 } break;
                 default:
                 {
@@ -69,6 +71,10 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
         mOpenCvCameraView = (CameraBridgeViewBase) findViewById(R.id.HelloOpenCvView);
 
         mOpenCvCameraView.setVisibility(SurfaceView.VISIBLE);
+
+        //Useful when we don't want to view openCV output and just want to view arcore
+       //mOpenCvCameraView.setAlpha(0);
+
 
         mOpenCvCameraView.setCvCameraViewListener(this);
 
@@ -131,12 +137,15 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
         Mat blurFrame = inputFrame.rgba().clone();
         Size gaussianKernel = new Size(7,7);
         Imgproc.GaussianBlur(inputFrame.rgba(),blurFrame, gaussianKernel,1);
-        Mat grayFrame = blurFrame;
-        Imgproc.cvtColor(blurFrame, grayFrame, Imgproc.COLOR_RGB2GRAY);
+        Mat grayBlurFrame = inputFrame.rgba().clone();
+        Imgproc.cvtColor(blurFrame, grayBlurFrame, Imgproc.COLOR_RGB2GRAY);
+
+        //what about median blur?
+
 
         //apply canny edge
-        Mat edgesFrame = grayFrame;
-        Imgproc.Canny(grayFrame, edgesFrame,23,83);
+        Mat edgesFrame = inputFrame.gray().clone();
+        Imgproc.Canny(grayBlurFrame, edgesFrame,23,83);
 
         //apply dilation
         Mat dilationKernel = Mat.ones(5,5,1);
@@ -164,13 +173,11 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
         Scalar color = new Scalar(0,255,0);
         for (int i = 0; i < contours.size(); i++){
             double area = Imgproc.contourArea(contours.get(i));
-            if (area >350000) {
+            if (area >10000) {
                 Log.i(TAG, String.valueOf(area));
-                Imgproc.drawContours(frame, contours,-1, color,5);
+                Imgproc.drawContours(frame, contours,-1, color,3);
             }
         }
 
     }
-
-
 }
