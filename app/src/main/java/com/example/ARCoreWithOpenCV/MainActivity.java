@@ -2,6 +2,8 @@ package com.example.ARCoreWithOpenCV;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
@@ -16,6 +18,7 @@ import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
+import org.opencv.android.Utils;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
@@ -247,18 +250,25 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
         for (int i = 0; i < contours.size(); i++){
             double area = Imgproc.contourArea(contours.get(i));
 
+            //only process contours that are significant enough
             if (area >10000) {
 
-                //get stats about contour's area, perimeter and vertices to predict shape
+                //get list of points of contour
                 MatOfPoint2f contour = new MatOfPoint2f(contours.get(i).toArray());
+                //get perimeter of contour
                 double perimeter = Imgproc.arcLength(contour,true);
+                //find out polygon that best matches the contour
                 MatOfPoint2f approxCurve = new MatOfPoint2f();
                 Imgproc.approxPolyDP(contour,approxCurve,0.02*perimeter,true);
+                //get number of vertices of the shape
                 int vertices = approxCurve.toArray().length;
+
+                //get starting coordinates (x,y), width and height of contour
                 Rect rect = Imgproc.boundingRect(contours.get(i));
                 double x = rect.x; double y = rect.y; double width = rect.width; double height = rect.height;
-                String shape = predictShape(vertices,width,height,area,perimeter);
 
+                //predict shape of object given its contour
+                String shape = predictShape(vertices,width,height,area,perimeter);
 
                 //draw bounding box and description around object
                 Imgproc.rectangle(frame, new Point(x,y),new Point(x+width, y+height),boundingBoxColor,2);
@@ -287,6 +297,7 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
 
 
     }
+    //predict type of shape
     public String predictShape(int vertices, double width,
                                double height, double area, double perimeter){
         double aspectRatio = width/ height;
@@ -307,11 +318,24 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
             }
         }
     }
+
+    //predict whether shape is circle or not
     public boolean circularityMeasure(double area, double perimeter){
         if (perimeter == 0 || area == 0){
             return false;
         }
         double measure = (4*Math.PI*area)/(perimeter*perimeter);
         return measure >= 0.8;
+    }
+
+    //animate anime features onto object detected
+    public void animateObject(Mat frame, Point center, double width, double height){
+        //load image to animate with
+        Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.animeface);
+        Mat animeImage = new Mat();
+        Utils.matToBitmap(animeImage,bMap);
+
+
+        
     }
 }
