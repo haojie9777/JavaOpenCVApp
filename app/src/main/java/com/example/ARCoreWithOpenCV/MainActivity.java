@@ -3,12 +3,12 @@ package com.example.ARCoreWithOpenCV;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
 import android.view.SurfaceView;
 import android.view.WindowManager;
+import android.widget.ImageView;
 import android.widget.Toast;
 
 import com.example.ARCoreWithOpenCV.common.helpers.CameraPermissionHelper;
@@ -19,6 +19,7 @@ import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.android.Utils;
+import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
@@ -29,6 +30,7 @@ import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -37,16 +39,7 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
 
     private static String TAG = "MainActivity";
     private static String CONTOURTAG = "ContourSize";
-
-    // requestInstall(Activity, true) will triggers installation of
-// Google Play Services for AR if necessary.
-    private boolean mUserRequestedInstall = true;
-
-
-    private Mat mRgba;
-    private Mat mIntermediateMat;
-    private Mat mGray;
-
+    private Mat animeImage;
     private CameraBridgeViewBase mOpenCvCameraView;
 
     private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
@@ -90,11 +83,10 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
         setContentView(R.layout.activity_main);
         mOpenCvCameraView = (CameraBridgeViewBase) findViewById(R.id.HelloOpenCvView);
 
-        mOpenCvCameraView.setVisibility(SurfaceView.VISIBLE);
-
         //Useful when we don't want to view openCV output and just want to view arcore
-       //mOpenCvCameraView.setAlpha(0);
+        //mOpenCvCameraView.setVisibility(SurfaceView.INVISIBLE);
 
+         mOpenCvCameraView.setVisibility(SurfaceView.VISIBLE);
 
         mOpenCvCameraView.setCvCameraViewListener(this);
 
@@ -183,11 +175,15 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
 
     //implementation of CameraBridgeViewBase.CvCameraViewListener2 interface methods
     public void onCameraViewStarted(int width, int height) {
-        mRgba = new Mat(height, width, CvType.CV_8UC4);
-        mIntermediateMat = new Mat(height, width, CvType.CV_8UC4);
-        mGray = new Mat(height, width, CvType.CV_8UC1);
         Log.i(TAG,"Called onCameraViewStarted()");
+        //load image to animate with
+        try {
+            animeImage = Utils.loadResource(this, R.drawable.animeface, CvType.CV_8UC4); //with alpha channel
+            Imgproc.cvtColor(animeImage,animeImage,Imgproc.COLOR_RGBA2RGB); //remove alpha channel
 
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public void onCameraViewStopped() {
@@ -212,7 +208,8 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
 
         //apply canny edge
         Mat edgesFrame = inputFrame.gray().clone();
-        Imgproc.Canny(grayBlurFrame, edgesFrame,23,83);
+        //Imgproc.Canny(grayBlurFrame, edgesFrame,23,83);
+        Imgproc.Canny(grayBlurFrame, edgesFrame,50,83); //more accurate edges
 
         //apply dilation
         Mat dilationKernel = Mat.ones(5,5,1);
@@ -290,6 +287,9 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
                 List<MatOfPoint> singleContour = new ArrayList<>();
                 singleContour.add(contours.get(i));
                 Imgproc.drawContours(frame, singleContour,-1, contourColor,3);
+
+                //animate onto object containing the contour
+                animateObject(frame,new Point(x, y),width,height);
             }
 
         }
@@ -329,13 +329,73 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
     }
 
     //animate anime features onto object detected
-    public void animateObject(Mat frame, Point center, double width, double height){
-        //load image to animate with
-        Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.animeface);
-        Mat animeImage = new Mat();
-        Utils.matToBitmap(animeImage,bMap);
+    public void animateObject(Mat frame, Point origin, double width, double height){
+
+        //resize image to size matching contour's bounding box
+        Mat animeImageResized = new Mat();
+        Imgproc.resize(animeImage, animeImageResized,new Size(width,height));
+
+
+        //get grayscale image
+        Mat animeImageResizedGrayed = animeImageResized.clone();
+        Imgproc.cvtColor(animeImageResized, animeImageResizedGrayed,Imgproc.COLOR_RGB2GRAY);
+        Log.i("debug","animeImageResizedGrayed = "+
+                animeImageResizedGrayed.channels() +" "+ animeImageResizedGrayed.dims() +" "+ animeImageResizedGrayed.size());
+
+
+        //threshold image to get a mask
+        Mat animeMask = animeImageResizedGrayed.clone();
+        Imgproc.threshold(animeImageResizedGrayed,animeMask,25,255,Imgproc.THRESH_BINARY_INV);
+        Log.i("debug","animeMask = "+
+                animeMask.channels() +" "+ animeMask.dims() +" "+ animeMask.size());
+
+
+        //Get frame without area that will be occupied by anime features
+        Rect roiCrop = new Rect((int) origin.x,(int) origin.y,(int) width,(int) height);
+        Mat roiArea = new Mat(frame, roiCrop);
+        Log.i("debug","roiArea= "+
+                roiArea.channels() +" "+ roiArea.dims() +" "+ roiArea.size());
+
+        //mask away anime features region
+        Mat animeAreaMasked = roiArea.clone();
+        Core.bitwise_and(roiArea,roiArea,animeAreaMasked,animeMask);
+        Imgproc.cvtColor(animeAreaMasked,animeAreaMasked,Imgproc.COLOR_RGBA2RGB);
+
+        //add anime features to roi region
+        Mat finalRoi = roiArea.clone();
+
+        //convert to 3 channel to add with other images
+        Imgproc.cvtColor(finalRoi,finalRoi,Imgproc.COLOR_RGBA2RGB);
+        Log.i("debug","finalRoi= "+
+                finalRoi.channels() +" "+ finalRoi.dims() +" "+ finalRoi.size());
+        Log.i("debug","animeAreaMasked= "+
+                animeAreaMasked.channels() +" "+ animeAreaMasked.dims() +" "+ animeAreaMasked.size());
+        Log.i("debug","animeImageResized= "+
+                animeImageResized.channels() +" "+ animeImageResized.dims() +" "+ animeImageResized.size());
+
+        Core.add(animeAreaMasked,animeImageResized,finalRoi);
+        Log.i("debug","finalRoi after adding= "+
+                finalRoi.channels() +" "+ finalRoi.dims() +" "+ finalRoi.size());
+
+
+        //change roi region in original frame itself
+        Mat subMat = frame.submat(new Rect((int) origin.x,(int) origin.y,finalRoi.cols(),finalRoi.rows()));
+
+        Log.i("debug","subMat "+
+                subMat.channels() +" "+ subMat.dims() +" "+ subMat.size());
+
+        //Imgproc.cvtColor(finalRoi,finalRoi,Imgproc.COLOR_RGB2BGRA);
+        Imgproc.cvtColor(finalRoi,finalRoi,Imgproc.COLOR_RGB2BGRA);
+        finalRoi.copyTo(subMat);
+
+
+
+
+
+
 
 
         
+
     }
 }
