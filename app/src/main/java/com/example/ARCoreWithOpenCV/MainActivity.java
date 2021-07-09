@@ -195,6 +195,7 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
 
         //Get a unmodified copy of the original frame
         Mat originalFrame = inputFrame.rgba().clone();
+        Imgproc.cvtColor(originalFrame, originalFrame,Imgproc.COLOR_RGBA2RGB);
 
         //apply gaussian blur on frame, then gray it
         Mat blurFrame = inputFrame.rgba().clone();
@@ -385,7 +386,7 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
                 subMat.channels() +" "+ subMat.dims() +" "+ subMat.size());
 
         //Imgproc.cvtColor(finalRoi,finalRoi,Imgproc.COLOR_RGB2BGRA);
-        Imgproc.cvtColor(finalRoi,finalRoi,Imgproc.COLOR_RGB2BGRA);
+        //Imgproc.cvtColor(finalRoi,finalRoi,Imgproc.COLOR_RGB2BGRA);
         finalRoi.copyTo(subMat);
 
 
