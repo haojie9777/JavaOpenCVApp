@@ -29,6 +29,7 @@ import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
+import org.opencv.imgproc.Moments;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -41,6 +42,7 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
     private static String CONTOURTAG = "ContourSize";
     private Mat animeImage;
     private CameraBridgeViewBase mOpenCvCameraView;
+    private boolean set = false;
 
     private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
         @Override
@@ -178,8 +180,9 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
         Log.i(TAG,"Called onCameraViewStarted()");
         //load image to animate with
         try {
-            animeImage = Utils.loadResource(this, R.drawable.animeface, CvType.CV_8UC4); //with alpha channel
-            Imgproc.cvtColor(animeImage,animeImage,Imgproc.COLOR_RGBA2RGB); //remove alpha channel
+            animeImage = Utils.loadResource(this, R.drawable.pignose, CvType.CV_8UC4); //with alpha channel
+            Imgproc.cvtColor(animeImage,animeImage,Imgproc.COLOR_BGRA2RGB); //remove alpha channel and convert to rgb
+
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -193,39 +196,31 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
         Log.i(TAG,"Called onCameraFrame()");
 
-        //Get a unmodified copy of the original frame
+        //Get a unmodified  rgb copy of the original frame
         Mat originalFrame = inputFrame.rgba().clone();
         Imgproc.cvtColor(originalFrame, originalFrame,Imgproc.COLOR_RGBA2RGB);
 
         //apply gaussian blur on frame, then gray it
-        Mat blurFrame = inputFrame.rgba().clone();
+        Mat blurFrame = originalFrame.clone();
         Size gaussianKernel = new Size(7,7);
-        Imgproc.GaussianBlur(inputFrame.rgba(),blurFrame, gaussianKernel,1);
-        Mat grayBlurFrame = inputFrame.rgba().clone();
-        Imgproc.cvtColor(blurFrame, grayBlurFrame, Imgproc.COLOR_RGB2GRAY);
+        Imgproc.GaussianBlur(originalFrame,blurFrame, gaussianKernel,1);
+        Imgproc.cvtColor(blurFrame, blurFrame, Imgproc.COLOR_RGB2GRAY);
 
-        //what about median blur?
-
+        //can also apply median blur
 
         //apply canny edge
-        Mat edgesFrame = inputFrame.gray().clone();
-        //Imgproc.Canny(grayBlurFrame, edgesFrame,23,83);
-        Imgproc.Canny(grayBlurFrame, edgesFrame,50,83); //more accurate edges
+        Imgproc.Canny(blurFrame, blurFrame,23,83); //more accurate edges
 
         //apply dilation
         Mat dilationKernel = Mat.ones(5,5,1);
-        Mat dilatedFrame = inputFrame.gray().clone();
         Point anchor = new Point(-1,-1);
-        Imgproc.dilate(edgesFrame,dilatedFrame,dilationKernel,anchor,1);
+        Imgproc.dilate(blurFrame,blurFrame,dilationKernel,anchor,1);
 
         //perform thresholding to remove noises
-        Mat thresholdFrame =  inputFrame.gray().clone();
-        Imgproc.threshold(dilatedFrame, thresholdFrame,127,255,Imgproc.THRESH_BINARY);
+        Imgproc.threshold(blurFrame, blurFrame,127,255,Imgproc.THRESH_BINARY);
 
-        List<MatOfPoint> contours = getContours(thresholdFrame);
-        //List<MatOfPoint> contours = getContours(dilatedFrame);
-
-        //draw contours
+        //Get contours and draw them
+        List<MatOfPoint> contours = getContours(blurFrame);
         drawContours(contours,originalFrame);
 
         return originalFrame;
@@ -245,11 +240,14 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
         Scalar contourColor = new Scalar(0,255,0);
         Scalar boundingBoxColor = new Scalar(255,255,0);
 
+        //only draw first contour
+        boolean hasDrawn = false;
+
         for (int i = 0; i < contours.size(); i++){
             double area = Imgproc.contourArea(contours.get(i));
 
             //only process contours that are significant enough
-            if (area >10000) {
+            if (area >10000 && !hasDrawn) {
 
                 //get list of points of contour
                 MatOfPoint2f contour = new MatOfPoint2f(contours.get(i).toArray());
@@ -288,9 +286,10 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
                 List<MatOfPoint> singleContour = new ArrayList<>();
                 singleContour.add(contours.get(i));
                 Imgproc.drawContours(frame, singleContour,-1, contourColor,3);
+                hasDrawn = true;
 
                 //animate onto object containing the contour
-                animateObject(frame,new Point(x, y),width,height);
+                animateObject(frame,new Point(x +(width/4),y +(height/4)),width/2,height/2);
             }
 
         }
@@ -337,6 +336,7 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
         Imgproc.resize(animeImage, animeImageResized,new Size(width,height));
 
 
+
         //get grayscale image
         Mat animeImageResizedGrayed = animeImageResized.clone();
         Imgproc.cvtColor(animeImageResized, animeImageResizedGrayed,Imgproc.COLOR_RGB2GRAY);
@@ -359,8 +359,9 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
 
         //mask away anime features region
         Mat animeAreaMasked = roiArea.clone();
-        Core.bitwise_and(roiArea,roiArea,animeAreaMasked,animeMask);
         Imgproc.cvtColor(animeAreaMasked,animeAreaMasked,Imgproc.COLOR_RGBA2RGB);
+        Core.bitwise_and(roiArea,roiArea,animeAreaMasked,animeMask);
+        //Imgproc.cvtColor(animeAreaMasked,animeAreaMasked,Imgproc.COLOR_RGBA2RGB);
 
         //add anime features to roi region
         Mat finalRoi = roiArea.clone();
@@ -380,17 +381,17 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
 
 
         //change roi region in original frame itself
-        Mat subMat = frame.submat(new Rect((int) origin.x,(int) origin.y,finalRoi.cols(),finalRoi.rows()));
+        //Mat subMat = frame.submat(new Rect((int) origin.x,(int) origin.y,finalRoi.cols(),finalRoi.rows()));
+        Mat subMat = frame.submat(new Rect((int) origin.x,(int) origin.y,(int) width,(int) height));
 
         Log.i("debug","subMat "+
                 subMat.channels() +" "+ subMat.dims() +" "+ subMat.size());
 
         //Imgproc.cvtColor(finalRoi,finalRoi,Imgproc.COLOR_RGB2BGRA);
-        //Imgproc.cvtColor(finalRoi,finalRoi,Imgproc.COLOR_RGB2BGRA);
+        //Imgproc.cvtColor(finalRoi,finalRoi,Imgproc.COLOR_RGB2BGR);
+        //Imgproc.cvtColor(finalRoi,finalRoi,Imgproc.COLOR_BGR2RGB);
+
         finalRoi.copyTo(subMat);
-
-
-
 
 
 
