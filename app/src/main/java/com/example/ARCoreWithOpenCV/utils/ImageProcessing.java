@@ -1,5 +1,10 @@
 package com.example.ARCoreWithOpenCV.utils;
 
+import android.content.Context;
+
+import org.opencv.android.BaseLoaderCallback;
+import org.opencv.android.LoaderCallbackInterface;
+import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
@@ -15,17 +20,53 @@ import java.util.List;
 
 public class ImageProcessing {
 
-    private static Mat overlayImage = new Mat();
-    private Mat overlayMask = new Mat();
+    private static Mat overlayImage;
+    private static Mat overlayMask;
+
+    private void initStaticImages(){
+        overlayImage = new Mat();
+        overlayMask = new Mat();
+    }
+
+    public ImageProcessing(Context context){
+        BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(context) {
+            @Override
+            public void onManagerConnected(int status) {
+            }
+        };
+        if (!OpenCVLoader.initDebug()) {
+            //Log.d(TAG, "Internal OpenCV library not found. Using OpenCV Manager for initialization");
+            OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_2_4_6, context, mLoaderCallback);
+        } else {
+            //Log.d(TAG, "OpenCV library found inside package. Using it!");
+            mLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
+        }
+        initStaticImages();
+    }
+
 
     public static void setOverlayImage(Mat image){
         overlayImage = image.clone();
+
+        //do some processing for png image background to be black when alpha =0, else will have issues with non-uniform png images
+        double[] emptyPixel = new double[]{0.0, 0.0, 0.0, 0.0};
+        for (int row = 0; row < overlayImage.rows(); row++) {
+            for (int col = 0; col < overlayImage.cols(); col++) {
+                //check alpha value
+                double[] pixel = overlayImage.get(row, col);
+                if (pixel[3] == 0) {
+                    overlayImage.put(row, col, emptyPixel);
+                }
+            }
+        }
+        Imgproc.cvtColor(overlayImage,overlayImage,Imgproc.COLOR_BGRA2RGB); //remove alpha channel and convert to rgb
     }
 
     public void setMaskImage(Mat image){
         overlayMask = image.clone();
     }
 
+    //Draw the first contour and also overlay a png onto it
     public void drawContours(List<MatOfPoint> contours, Mat frame) {
         Scalar contourColor = new Scalar(0, 255, 0);
         Scalar boundingBoxColor = new Scalar(255, 255, 0);
@@ -61,9 +102,9 @@ public class ImageProcessing {
 
                 //draw bounding box and description around object
                 Imgproc.rectangle(frame, new Point(x, y), new Point(x + width, y + height), boundingBoxColor, 2);
-                Imgproc.putText(frame, ("Area: " + String.valueOf(area)), new Point(x + width + 20, y + 20),
+                Imgproc.putText(frame, ("Area: " + area), new Point(x + width + 20, y + 20),
                         3, 0.7, boundingBoxColor, 2);
-                Imgproc.putText(frame, ("Vertices: " + String.valueOf(vertices)), new Point(x + width + 20, y + 45),
+                Imgproc.putText(frame, ("Vertices: " + vertices), new Point(x + width + 20, y + 45),
                         3, 0.7, boundingBoxColor, 2);
                 Imgproc.putText(frame, ("Shape: " + shape), new Point(x + width + 20, y + 75),
                         3, 0.7, boundingBoxColor, 2);
