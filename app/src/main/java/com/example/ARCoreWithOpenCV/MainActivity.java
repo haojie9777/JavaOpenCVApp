@@ -43,6 +43,9 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
     private Mat maskImage;
     private CameraBridgeViewBase mOpenCvCameraView;
 
+    //set to true to view imageview for images. Also need to uncomment in view
+    private boolean debugMode = false;
+
 
 
 
@@ -186,8 +189,22 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
         Log.i(TAG,"Called onCameraViewStarted()");
         //load image to animate with
         try {
-            animeImage = Utils.loadResource(this, R.drawable.pignose, CvType.CV_8UC4); //with alpha channel
+            animeImage = Utils.loadResource(this, R.drawable.animeface, CvType.CV_8UC4); //with alpha channel
             maskImage = getPngMask(animeImage);
+
+            //do some processing for png image background to be black when alpha =0
+            double[] emptyPixel = new double[]{0.0, 0.0, 0.0, 0.0};
+            for (int row = 0; row < animeImage.rows(); row++) {
+                for (int col = 0; col < animeImage.cols(); col++) {
+                    //check alpha value
+                    double[] pixel = animeImage.get(row, col);
+                    if (pixel[3] == 0) {
+                        animeImage.put(row, col, emptyPixel);
+                    }
+                }
+            }
+
+
             Imgproc.cvtColor(animeImage,animeImage,Imgproc.COLOR_BGRA2RGB); //remove alpha channel and convert to rgb
         } catch (IOException e) {
             e.printStackTrace();
@@ -341,18 +358,6 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
         Mat animeImageResized = new Mat();
         Imgproc.resize(animeImage, animeImageResized,new Size(width,height));
 
-        /*
-
-        //get grayscale image
-        Mat animeImageResizedGrayed = animeImageResized.clone();
-        Imgproc.cvtColor(animeImageResized, animeImageResizedGrayed,Imgproc.COLOR_RGB2GRAY);
-
-        //threshold image to get a mask
-        Mat animeMask = animeImageResizedGrayed.clone();
-        Imgproc.threshold(animeImageResizedGrayed,animeMask,0,255,Imgproc.THRESH_BINARY_INV);
-
-         */
-
         //Get frame without area that will be occupied by anime features
         Rect roiCrop = new Rect((int) origin.x,(int) origin.y,(int) width,(int) height);
         Mat roiArea = new Mat(frame, roiCrop);
@@ -369,9 +374,7 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
 
 
         //add anime features to roi region
-        //Mat finalRoi = roiArea.clone();
         Mat finalRoi = new Mat();
-
         Core.add(animeAreaMasked,animeImageResized,finalRoi); //1st one is ?? 2nd one is rgb
         Log.i("debug","animeAreaMasked= "+
                 animeAreaMasked.channels() +" "+ animeAreaMasked.dims() +" "+ animeAreaMasked.size());
@@ -379,68 +382,33 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
                 animeImageResized.channels() +" "+ animeImageResized.dims() +" "+ animeImageResized.size());
 
 
-        //testing code
-        Bitmap bmp = Bitmap.createBitmap(animeAreaMasked.cols(),animeAreaMasked.rows(), Bitmap.Config.RGB_565);
-        Utils.matToBitmap(animeAreaMasked,bmp);
-
-        Bitmap bmp2 = Bitmap.createBitmap(animeImageResized.cols(),animeImageResized.rows(), Bitmap.Config.RGB_565);
-        Utils.matToBitmap(animeImageResized,bmp2);
-        runOnUiThread(new Runnable() {
-            public void run() {
-                ImageView imageView = (ImageView) findViewById(R.id.imageView);
-                ImageView imageView2 = (ImageView) findViewById(R.id.imageView2);
-
-                imageView.setImageBitmap(bmp);
-                imageView2.setImageBitmap(bmp2);
-            }});
-
-
-        //change roi region in original frame itself
-        //Mat subMat = frame.submat(new Rect((int) origin.x,(int) origin.y,finalRoi.cols(),finalRoi.rows()));
-        Mat subMat = frame.submat(new Rect((int) origin.x,(int) origin.y,(int) width,(int) height));
-
-
-        //Imgproc.cvtColor(finalRoi,finalRoi,Imgproc.COLOR_RGB2BGRA);
-        //Imgproc.cvtColor(finalRoi,finalRoi,Imgproc.COLOR_RGB2BGR);
-        //Imgproc.cvtColor(finalRoi,finalRoi,Imgproc.COLOR_BGR2RGB);
-
-
-        finalRoi.copyTo(subMat);
-
-            //set = true;
-            /*
-            Log.i("debug","bmp colospace"+ bmp.getColorSpace().toString() + " " + bmp.getByteCount());
-            Log.i("debug","finalRoi= "+
-                    finalRoi.channels() +" "+ finalRoi.dims() +" "+ finalRoi.size());
-
-
-            Log.i("debug","animeAreaMasked= "+
-                    animeAreaMasked.channels() +" "+ animeAreaMasked.dims() +" "+ animeAreaMasked.size());
-            Log.i("debug","animeImageResized= "+
-                    animeImageResized.channels() +" "+ animeImageResized.dims() +" "+ animeImageResized.size());
-
-             */
-
-        //show image on imageView
+        //show selected images on imageview
         /*
-        if (!set){
+        if (debugMode){
             Bitmap bmp = Bitmap.createBitmap(animeAreaMasked.cols(),animeAreaMasked.rows(), Bitmap.Config.RGB_565);
             Utils.matToBitmap(animeAreaMasked,bmp);
 
+            Bitmap bmp2 = Bitmap.createBitmap(animeImage.cols(),animeImage.rows(), Bitmap.Config.RGB_565);
+            Utils.matToBitmap(animeImage,bmp2);
             runOnUiThread(new Runnable() {
-
                 public void run() {
                     ImageView imageView = (ImageView) findViewById(R.id.imageView);
+                    ImageView imageView2 = (ImageView) findViewById(R.id.imageView2);
 
-                    //imageView.setImageDrawable(getDrawable(R.drawable.pignose));
                     imageView.setImageBitmap(bmp);
-                }
-            });
+                    imageView2.setImageBitmap(bmp2);
+                }});
+        }
 
          */
 
+        //change roi region in original frame itself
+        Mat subMat = frame.submat(new Rect((int) origin.x,(int) origin.y,(int) width,(int) height));
+        finalRoi.copyTo(subMat);
+
     }
 
+    //returns binary mask of a png image
     public Mat getPngMask(Mat image) {
         Mat mask = image.clone();
         double[] emptyPixel = new double[]{0.0, 0.0, 0.0, 0.0};

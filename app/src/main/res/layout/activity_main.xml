@@ -6,14 +6,14 @@
     android:orientation="horizontal">
 
     <org.opencv.android.JavaCameraView
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_weight="1"
         android:visibility="visible"
         android:id="@+id/HelloOpenCvView"
         opencv:show_fps="true"
         opencv:camera_id="any" />
 
+    <!--
     <ImageView
         android:layout_width="0dp"
         android:layout_height="wrap_content"
@@ -28,6 +28,7 @@
         android:id="@+id/imageView2"
         android:src="@drawable/tyler"
         />
+        -->
 
 
 </LinearLayout>
