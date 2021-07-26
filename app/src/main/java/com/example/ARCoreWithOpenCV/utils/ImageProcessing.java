@@ -1,6 +1,7 @@
 package com.example.ARCoreWithOpenCV.utils;
 
 import android.content.Context;
+import android.util.Log;
 
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.LoaderCallbackInterface;
@@ -67,7 +68,7 @@ public class ImageProcessing {
     }
 
     //Draw the first contour and also overlay a png onto it
-    public void drawContours(List<MatOfPoint> contours, Mat frame) {
+    public void drawContours(List<MatOfPoint> contours, Mat frame,Point lastTouchedCoordinates) {
         Scalar contourColor = new Scalar(0, 255, 0);
         Scalar boundingBoxColor = new Scalar(255, 255, 0);
 
@@ -92,13 +93,19 @@ public class ImageProcessing {
 
                 //get starting coordinates (x,y), width and height of contour
                 Rect rect = Imgproc.boundingRect(contours.get(i));
+
+                if (!rect.contains(lastTouchedCoordinates)) return;
                 double x = rect.x;
                 double y = rect.y;
                 double width = rect.width;
                 double height = rect.height;
 
+                Log.i("MainActivity", Double.toString(x + (width/2)));
+
                 //predict shape of object given its contour
                 String shape = predictShape(vertices, width, height, area, perimeter);
+                //only proceed if is circle for now
+
 
                 //draw bounding box and description around object
                 Imgproc.rectangle(frame, new Point(x, y), new Point(x + width, y + height), boundingBoxColor, 2);
@@ -159,7 +166,7 @@ public class ImageProcessing {
             return false;
         }
         double measure = (4*Math.PI*area)/(perimeter*perimeter);
-        return measure >= 0.8;
+        return measure >= 0.70;
     }
 
     //apply overlay onto given points in the frame
@@ -184,7 +191,7 @@ public class ImageProcessing {
 
         //add anime features to roi region
         Mat finalRoi = new Mat();
-        Core.add(animeAreaMasked,animeImageResized,finalRoi); //1st one is ?? 2nd one is rgb
+        Core.add(animeAreaMasked,animeImageResized,finalRoi);
 
         //show selected images on imageview
         /*
@@ -235,6 +242,8 @@ public class ImageProcessing {
 
         return mask;
     }
+
+
 
 
 

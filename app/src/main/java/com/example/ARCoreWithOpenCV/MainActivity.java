@@ -4,7 +4,9 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.os.Bundle;
+import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.MotionEvent;
 import android.view.SurfaceView;
 import android.view.WindowManager;
 import android.widget.Toast;
@@ -33,8 +35,9 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
     private static final String TAG = "MainActivity";
     private CameraBridgeViewBase mOpenCvCameraView;
 
+    //store coordinates of where user last touched the screen
+    private Point lastTouchCoordinates = new Point(-1,-1);
     private final ImageProcessing imageProcessing = new ImageProcessing(this);
-
 
     private final BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
         @Override
@@ -129,7 +132,7 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
         Log.i(TAG,"Called onCameraViewStarted()");
         //load image to animate with
         try {
-            Mat overlayImage = Utils.loadResource(this, R.drawable.animeface, CvType.CV_8UC4); //with alpha channel
+            Mat overlayImage = Utils.loadResource(this, R.drawable.fox, CvType.CV_8UC4); //with alpha channel
             Mat maskImage = imageProcessing.getPngMask(overlayImage);
             ImageProcessing.setOverlayImage(overlayImage);
             imageProcessing.setMaskImage(maskImage);
@@ -145,7 +148,6 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
 
     //carry out frame processing here
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
-        Log.i(TAG,"Called onCameraFrame()");
 
         //Get a unmodified rgb copy of the original frame
         Mat originalFrame = inputFrame.rgba().clone();
@@ -159,6 +161,7 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
 
         //can also apply median blur
         //apply canny edge
+
         Imgproc.Canny(blurFrame, blurFrame,23,83); //more accurate edges
 
         //apply dilation
@@ -171,10 +174,34 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
 
         //Get contours and draw them
         List<MatOfPoint> contours = imageProcessing.getContours(blurFrame);
-        imageProcessing.drawContours(contours,originalFrame);
+
+        if (lastTouchCoordinates.x != -1){
+            imageProcessing.drawContours(contours,originalFrame,lastTouchCoordinates);
+
+        }
+
 
         return originalFrame;
     }
 
+    //Gets coordinate of user last touched point, convert to openCV 640x480, then stored it in memory
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        if (event.getAction() == MotionEvent.ACTION_DOWN) {
+            Log.i(TAG, "touched screen!");
+            DisplayMetrics dm = getResources().getDisplayMetrics();
+            double x = event.getX();
+            double y = event.getY();
+            double correctedX = (x*640)/dm.widthPixels;
+            double correctedY = (y*480)/dm.heightPixels;
+            //store coordinate into variable
+            double[] point = {correctedX,correctedY};
+            lastTouchCoordinates.set(point);
+            Log.i(TAG, lastTouchCoordinates.toString());
+        }
+        return true;
     }
+
+
+}
 
