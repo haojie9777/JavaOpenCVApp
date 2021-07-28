@@ -3,10 +3,10 @@ package com.example.ARCoreWithOpenCV.utils;
 import android.content.Context;
 import android.util.Log;
 
-import org.opencv.android.BaseLoaderCallback;
-import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
+import org.opencv.android.Utils;
 import org.opencv.core.Core;
+import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
 import org.opencv.core.MatOfPoint2f;
@@ -16,33 +16,33 @@ import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import com.example.ARCoreWithOpenCV.Models.Gastly;
+import com.example.ARCoreWithOpenCV.MyApplication;
+import com.example.ARCoreWithOpenCV.R;
 
 public class ImageProcessing {
 
     private static Mat overlayImage;
     private static Mat overlayMask;
+    private Gastly gastly;
+    private static final String TAG = "ImageProcessing";
 
     private void initStaticImages(){
         overlayImage = new Mat();
         overlayMask = new Mat();
     }
 
-    public ImageProcessing(Context context){
-        BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(context) {
-            @Override
-            public void onManagerConnected(int status) {
-            }
-        };
-        if (!OpenCVLoader.initDebug()) {
-            //Log.d(TAG, "Internal OpenCV library not found. Using OpenCV Manager for initialization");
-            OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_2_4_6, context, mLoaderCallback);
-        } else {
-            //Log.d(TAG, "OpenCV library found inside package. Using it!");
-            mLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
+    public ImageProcessing() throws IOException {
+
+        if (OpenCVLoader.initDebug()) {
+            Log.d(TAG, "OpenCV library found inside package. Using it!");
         }
+        else throw new IOException("Opencv lib not found in ImageProcessing.java");
         initStaticImages();
+        gastly = new Gastly();
     }
 
 
@@ -63,12 +63,12 @@ public class ImageProcessing {
         Imgproc.cvtColor(overlayImage,overlayImage,Imgproc.COLOR_BGRA2RGB); //remove alpha channel and convert to rgb
     }
 
-    public void setMaskImage(Mat image){
+    public static void setMaskImage(Mat image){
         overlayMask = image.clone();
     }
 
     //Draw the first contour and also overlay a png onto it
-    public void drawContours(List<MatOfPoint> contours, Mat frame,Point lastTouchedCoordinates) {
+    public void processContours(List<MatOfPoint> contours, Mat frame,Point lastTouchedCoordinates) {
         Scalar contourColor = new Scalar(0, 255, 0);
         Scalar boundingBoxColor = new Scalar(255, 255, 0);
 
@@ -94,18 +94,18 @@ public class ImageProcessing {
                 //get starting coordinates (x,y), width and height of contour
                 Rect rect = Imgproc.boundingRect(contours.get(i));
 
+                //return if user did not touched ROI
                 if (!rect.contains(lastTouchedCoordinates)) return;
                 double x = rect.x;
                 double y = rect.y;
                 double width = rect.width;
                 double height = rect.height;
 
-                Log.i("MainActivity", Double.toString(x + (width/2)));
-
                 //predict shape of object given its contour
                 String shape = predictShape(vertices, width, height, area, perimeter);
-                //only proceed if is circle for now
 
+                //only proceed if is circle for now
+                //if (shape!= "Circle") return;
 
                 //draw bounding box and description around object
                 Imgproc.rectangle(frame, new Point(x, y), new Point(x + width, y + height), boundingBoxColor, 2);
@@ -216,7 +216,7 @@ public class ImageProcessing {
     }
 
     //returns binary mask of a png image
-    public Mat getPngMask(Mat image) {
+    public static Mat getPngMask(Mat image) {
         Mat mask = image.clone();
         double[] emptyPixel = new double[]{0.0, 0.0, 0.0, 0.0};
         double[] nonEmptyPixel = new double[]{255.0, 255.0, 255.0, 255.0};

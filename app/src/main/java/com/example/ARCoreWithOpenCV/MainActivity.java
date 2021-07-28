@@ -36,8 +36,8 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
     private CameraBridgeViewBase mOpenCvCameraView;
 
     //store coordinates of where user last touched the screen
-    private Point lastTouchCoordinates = new Point(-1,-1);
-    private final ImageProcessing imageProcessing = new ImageProcessing(this);
+    private final Point lastTouchCoordinates = new Point(-1,-1);
+    private final ImageProcessing imageProcessing = new ImageProcessing();
 
     private final BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
         @Override
@@ -52,6 +52,9 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
             }
         }
     };
+
+    public MainActivity() throws IOException {
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -87,10 +90,10 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
             return;
         }
         if (!OpenCVLoader.initDebug()) {
-            //Log.d(TAG, "Internal OpenCV library not found. Using OpenCV Manager for initialization");
+            Log.d(TAG, "Internal OpenCV library not found. Using OpenCV Manager for initialization");
             OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_2_4_6, this, mLoaderCallback);
         } else {
-            //Log.d(TAG, "OpenCV library found inside package. Using it!");
+            Log.d(TAG, "OpenCV library found inside package. Using it!");
             mLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
         }
     }
@@ -132,10 +135,10 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
         Log.i(TAG,"Called onCameraViewStarted()");
         //load image to animate with
         try {
-            Mat overlayImage = Utils.loadResource(this, R.drawable.fox, CvType.CV_8UC4); //with alpha channel
-            Mat maskImage = imageProcessing.getPngMask(overlayImage);
+            Mat overlayImage = Utils.loadResource(this, R.drawable.gastly, CvType.CV_8UC4); //with alpha channel
+            Mat maskImage = ImageProcessing.getPngMask(overlayImage);
             ImageProcessing.setOverlayImage(overlayImage);
-            imageProcessing.setMaskImage(maskImage);
+            ImageProcessing.setMaskImage(maskImage);
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -148,7 +151,6 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
 
     //carry out frame processing here
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
-
         //Get a unmodified rgb copy of the original frame
         Mat originalFrame = inputFrame.rgba().clone();
         Imgproc.cvtColor(originalFrame, originalFrame,Imgproc.COLOR_RGBA2RGB);
@@ -159,9 +161,7 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
         Imgproc.GaussianBlur(originalFrame,blurFrame, gaussianKernel,1);
         Imgproc.cvtColor(blurFrame, blurFrame, Imgproc.COLOR_RGB2GRAY);
 
-        //can also apply median blur
         //apply canny edge
-
         Imgproc.Canny(blurFrame, blurFrame,23,83); //more accurate edges
 
         //apply dilation
@@ -176,10 +176,8 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
         List<MatOfPoint> contours = imageProcessing.getContours(blurFrame);
 
         if (lastTouchCoordinates.x != -1){
-            imageProcessing.drawContours(contours,originalFrame,lastTouchCoordinates);
-
+            imageProcessing.processContours(contours,originalFrame,lastTouchCoordinates);
         }
-
 
         return originalFrame;
     }
