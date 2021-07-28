@@ -133,16 +133,6 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
     //implementation of CameraBridgeViewBase.CvCameraViewListener2 interface methods
     public void onCameraViewStarted(int width, int height) {
         Log.i(TAG,"Called onCameraViewStarted()");
-        //load image to animate with
-        try {
-            Mat overlayImage = Utils.loadResource(this, R.drawable.gastly, CvType.CV_8UC4); //with alpha channel
-            Mat maskImage = ImageProcessing.getPngMask(overlayImage);
-            ImageProcessing.setOverlayImage(overlayImage);
-            ImageProcessing.setMaskImage(maskImage);
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 
     public void onCameraViewStopped() {

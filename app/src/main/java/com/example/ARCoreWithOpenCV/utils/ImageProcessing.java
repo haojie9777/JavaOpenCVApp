@@ -63,6 +63,23 @@ public class ImageProcessing {
         Imgproc.cvtColor(overlayImage,overlayImage,Imgproc.COLOR_BGRA2RGB); //remove alpha channel and convert to rgb
     }
 
+    public static Mat processOverlayImage(Mat image){
+        Mat image1 = image.clone();
+        //do some processing for png image background to be black when alpha =0, else will have issues with non-uniform png images
+        double[] emptyPixel = new double[]{0.0, 0.0, 0.0, 0.0};
+        for (int row = 0; row < image1.rows(); row++) {
+            for (int col = 0; col < image1.cols(); col++) {
+                //check alpha value
+                double[] pixel = image1.get(row, col);
+                if (pixel[3] == 0) {
+                    image1.put(row, col, emptyPixel);
+                }
+            }
+        }
+        Imgproc.cvtColor(image1,image1,Imgproc.COLOR_BGRA2RGB); //remove alpha channel and convert to rgb
+        return image1;
+    }
+
     public static void setMaskImage(Mat image){
         overlayMask = image.clone();
     }
@@ -123,8 +140,9 @@ public class ImageProcessing {
                 Imgproc.drawContours(frame, singleContour, -1, contourColor, 3);
                 hasDrawn = true;
 
-                //apply overlay onto center of object containing the contour
-                applyOverlay(frame, new Point(x + (width / 4), y + (height / 4)), width / 2, height / 2);
+                //apply overlay onto center of object containing the contour, depending on the type of object
+                //if (shape == "circle")
+                applyOverlay(frame, new Point(x + (width / 4), y + (height / 4)), width / 2, height / 2, "Gastly");
             }
 
         }
@@ -170,7 +188,44 @@ public class ImageProcessing {
     }
 
     //apply overlay onto given points in the frame
-    public void applyOverlay(Mat frame, Point origin, double width, double height){
+    public void applyOverlay(Mat frame, Point origin, double width, double height, String overlayName){
+        switch (overlayName) {
+            case "Gastly": {
+                overlayImage = Gastly.getOverlayImage();
+                overlayMask = Gastly.getOverlayMask();
+            }
+        }
+        //in case not init properly
+        if (overlayImage.empty() || overlayMask.empty()){
+           return;
+        }
+            //resize image to size matching contour's bounding box
+            Mat overlayImageResized = new Mat();
+            Imgproc.resize(overlayImage, overlayImageResized,new Size(width,height));
+
+            //Get frame without area that will be occupied by overlay features
+            Rect roiCrop = new Rect((int) origin.x,(int) origin.y,(int) width,(int) height);
+            Mat roiArea = new Mat(frame, roiCrop);
+
+            //retrieve mask and resize it
+            Mat resizedMask = new Mat();
+            Imgproc.resize(overlayMask, resizedMask, new Size(width,height));
+
+            //mask away overlay features region
+            Mat overlayAreaMasked = roiArea.clone();
+            Imgproc.cvtColor(overlayAreaMasked,overlayAreaMasked,Imgproc.COLOR_BGR2RGBA);
+            Core.bitwise_and(roiArea,roiArea,overlayAreaMasked,resizedMask);
+            Imgproc.cvtColor(overlayAreaMasked,overlayAreaMasked,Imgproc.COLOR_RGBA2RGB);
+
+            //add overlay features to roi region
+            Mat finalRoi = new Mat();
+            Core.add(overlayAreaMasked,overlayImageResized,finalRoi);
+
+            //change roi region in original frame itself
+            Mat subMat = frame.submat(new Rect((int) origin.x,(int) origin.y,(int) width,(int) height));
+            finalRoi.copyTo(subMat);
+
+        /*
         //resize image to size matching contour's bounding box
         Mat animeImageResized = new Mat();
         Imgproc.resize(overlayImage, animeImageResized,new Size(width,height));
@@ -194,7 +249,7 @@ public class ImageProcessing {
         Core.add(animeAreaMasked,animeImageResized,finalRoi);
 
         //show selected images on imageview
-        /*
+
         if (debugMode){
             Bitmap bmp = Bitmap.createBitmap(animeAreaMasked.cols(),animeAreaMasked.rows(), Bitmap.Config.RGB_565);
             Utils.matToBitmap(animeAreaMasked,bmp);
@@ -208,11 +263,12 @@ public class ImageProcessing {
                     imageView2.setImageBitmap(bmp2);
                 }});
         }
-         */
+
 
         //change roi region in original frame itself
         Mat subMat = frame.submat(new Rect((int) origin.x,(int) origin.y,(int) width,(int) height));
         finalRoi.copyTo(subMat);
+        */
     }
 
     //returns binary mask of a png image

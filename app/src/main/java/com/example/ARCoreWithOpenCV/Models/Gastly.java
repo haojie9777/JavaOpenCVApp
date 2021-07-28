@@ -24,6 +24,8 @@ public class Gastly extends Figurine {
         Context context = MyApplication.getAppContext();
         overlayImage = Utils.loadResource(context, R.drawable.gastly, CvType.CV_8UC4); //with alpha channel
         overlayMask = ImageProcessing.getPngMask(overlayImage);
+        //remove alpha channel and make background black
+        overlayImage = ImageProcessing.processOverlayImage(overlayImage);
     }
 
     public static Mat getOverlayImage() {
