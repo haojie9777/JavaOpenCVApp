@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">FYP</string>
+    <string name="debug_button">debug mode</string>
 </resources>

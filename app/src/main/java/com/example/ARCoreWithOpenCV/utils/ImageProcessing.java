@@ -1,12 +1,10 @@
 package com.example.ARCoreWithOpenCV.utils;
 
-import android.content.Context;
+
 import android.util.Log;
 
 import org.opencv.android.OpenCVLoader;
-import org.opencv.android.Utils;
 import org.opencv.core.Core;
-import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
 import org.opencv.core.MatOfPoint2f;
@@ -21,7 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import com.example.ARCoreWithOpenCV.Models.Gastly;
 import com.example.ARCoreWithOpenCV.MyApplication;
-import com.example.ARCoreWithOpenCV.R;
+
 
 public class ImageProcessing {
 
@@ -124,25 +122,30 @@ public class ImageProcessing {
                 //only proceed if is circle for now
                 //if (shape!= "Circle") return;
 
-                //draw bounding box and description around object
-                Imgproc.rectangle(frame, new Point(x, y), new Point(x + width, y + height), boundingBoxColor, 2);
-                Imgproc.putText(frame, ("Area: " + area), new Point(x + width + 20, y + 20),
-                        3, 0.7, boundingBoxColor, 2);
-                Imgproc.putText(frame, ("Vertices: " + vertices), new Point(x + width + 20, y + 45),
-                        3, 0.7, boundingBoxColor, 2);
-                Imgproc.putText(frame, ("Shape: " + shape), new Point(x + width + 20, y + 75),
-                        3, 0.7, boundingBoxColor, 2);
+                //only show bounding rect and contour if debug mode on
+                if (MyApplication.getViewMode() == 1){
+                    //draw bounding box and description around object
+                    Imgproc.rectangle(frame, new Point(x, y), new Point(x + width, y + height), boundingBoxColor, 2);
+                    Imgproc.putText(frame, ("Area: " + area), new Point(x + width + 20, y + 20),
+                            3, 0.7, boundingBoxColor, 2);
+                    Imgproc.putText(frame, ("Vertices: " + vertices), new Point(x + width + 20, y + 45),
+                            3, 0.7, boundingBoxColor, 2);
+                    Imgproc.putText(frame, ("Shape: " + shape), new Point(x + width + 20, y + 75),
+                            3, 0.7, boundingBoxColor, 2);
+
+                    //draw contour
+                    List<MatOfPoint> singleContour = new ArrayList<>();
+                    singleContour.add(contours.get(i));
+                    Imgproc.drawContours(frame, singleContour, -1, contourColor, 3);
+                    hasDrawn = true;
 
 
-                //draw contour
-                List<MatOfPoint> singleContour = new ArrayList<>();
-                singleContour.add(contours.get(i));
-                Imgproc.drawContours(frame, singleContour, -1, contourColor, 3);
-                hasDrawn = true;
+                }
+
 
                 //apply overlay onto center of object containing the contour, depending on the type of object
                 //if (shape == "circle")
-                applyOverlay(frame, new Point(x + (width / 4), y + (height / 4)), width / 2, height / 2, "Gastly");
+                applyOverlay(frame, new Point(x , y), width , height , "Gastly");
             }
 
         }

@@ -3,9 +3,12 @@ package com.example.ARCoreWithOpenCV;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+
 import android.os.Bundle;
 import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.SurfaceView;
 import android.view.WindowManager;
@@ -19,8 +22,6 @@ import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
-import org.opencv.android.Utils;
-import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
 import org.opencv.core.Point;
@@ -30,6 +31,8 @@ import org.opencv.imgproc.Imgproc;
 import java.io.IOException;
 import java.util.List;
 
+import com.example.ARCoreWithOpenCV.MyApplication; //for global context and variable
+
 public class MainActivity extends AppCompatActivity implements CameraBridgeViewBase.CvCameraViewListener2 {
 
     private static final String TAG = "MainActivity";
@@ -38,6 +41,9 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
     //store coordinates of where user last touched the screen
     private final Point lastTouchCoordinates = new Point(-1,-1);
     private final ImageProcessing imageProcessing = new ImageProcessing();
+
+
+    private static int viewMode = 0; //1 for debug mode, 0 for normal mode
 
     private final BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
         @Override
@@ -60,7 +66,6 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
         if (OpenCVLoader.initDebug()){
             Log.d(TAG,"OpenCV loaded successfully");
         }
@@ -75,8 +80,25 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
         mOpenCvCameraView.setCvCameraViewListener(this);
     }
 
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        Log.i(TAG, "called onCreateOptionsMenu");
+        super.onCreateOptionsMenu(menu);
+        getMenuInflater().inflate(R.menu.menu, menu);
+        return true;
+    }
 
-
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle item selection
+        switch (item.getItemId()) {
+            case R.id.debug_button:
+                MyApplication.toggleViewMode();
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
+    }
 
     @Override
     public void onResume()
