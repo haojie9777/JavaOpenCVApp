@@ -110,7 +110,7 @@ public class ImageProcessing {
                 Rect rect = Imgproc.boundingRect(contours.get(i));
 
                 //return if user did not touched ROI
-                if (!rect.contains(lastTouchedCoordinates)) return;
+                if (!rect.contains(lastTouchedCoordinates) && !Gastly.isDetected()) return;
                 double x = rect.x;
                 double y = rect.y;
                 double width = rect.width;
@@ -196,6 +196,7 @@ public class ImageProcessing {
             case "Gastly": {
                 overlayImage = Gastly.getOverlayImage();
                 overlayMask = Gastly.getOverlayMask();
+                Gastly.setDetected(true);
             }
         }
         //in case not init properly
