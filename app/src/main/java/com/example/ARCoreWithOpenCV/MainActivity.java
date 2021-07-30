@@ -4,6 +4,7 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 
+import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.util.DisplayMetrics;
 import android.util.Log;
@@ -14,6 +15,7 @@ import android.view.SurfaceView;
 import android.view.WindowManager;
 import android.widget.Toast;
 
+import com.example.ARCoreWithOpenCV.Models.Gastly;
 import com.example.ARCoreWithOpenCV.common.helpers.CameraPermissionHelper;
 import com.example.ARCoreWithOpenCV.utils.ImageProcessing;
 
@@ -208,6 +210,14 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
             double[] point = {correctedX,correctedY};
             lastTouchCoordinates.set(point);
             Log.i(TAG, lastTouchCoordinates.toString());
+
+            //play sound if touched a figurine
+            if (Gastly.coordinatesInBox(lastTouchCoordinates)){
+                MediaPlayer ring= MediaPlayer.create(MainActivity.this,R.raw.gastly);
+                ring.start();
+            }
+
+
         }
         return true;
     }

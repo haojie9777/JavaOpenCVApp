@@ -121,7 +121,7 @@ public class ImageProcessing {
 
                 //only proceed if is circle for now
                 //if (shape!= "Circle") return;
-
+                Gastly.setLastBoundingBox(rect);
                 //only show bounding rect and contour if debug mode on
                 if (MyApplication.getViewMode() == 1){
                     //draw bounding box and description around object

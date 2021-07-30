@@ -11,6 +11,8 @@ import org.opencv.android.OpenCVLoader;
 import org.opencv.android.Utils;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.core.Point;
+import org.opencv.core.Rect;
 
 import java.io.IOException;
 
@@ -18,6 +20,8 @@ public class Gastly extends Figurine {
     private static Mat overlayImage = new Mat();
     private static Mat overlayMask = new Mat();
     private static final String TAG = "Gastly";
+
+    private static Rect lastBoundingBox = null;
 
     public Gastly() throws IOException {
         super("Gastly","Circle");
@@ -44,7 +48,23 @@ public class Gastly extends Figurine {
         Gastly.overlayMask = overlayMask;
     }
 
+    public static Rect getLastBoundingBox() {
+        return lastBoundingBox;
+    }
 
+    public static void setLastBoundingBox(Rect lastBoundingBox) {
+        Gastly.lastBoundingBox = lastBoundingBox;
+    }
+
+    public static boolean coordinatesInBox(Point coordinates){
+        if (lastBoundingBox == null){
+            return false;
+        }
+        if (lastBoundingBox.contains(coordinates)){
+            return true;
+        }
+        return false;
+    }
 
 
 
