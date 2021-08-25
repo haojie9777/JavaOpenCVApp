@@ -83,7 +83,7 @@ public class ImageProcessing {
     }
 
     //Draw the first contour and also overlay a png onto it
-    public void processContours(List<MatOfPoint> contours, Mat frame,Point lastTouchedCoordinates) {
+    public boolean processContours(List<MatOfPoint> contours, Mat frame,Point lastTouchedCoordinates) {
         Scalar contourColor = new Scalar(0, 255, 0);
         Scalar boundingBoxColor = new Scalar(255, 255, 0);
 
@@ -110,7 +110,7 @@ public class ImageProcessing {
                 Rect rect = Imgproc.boundingRect(contours.get(i));
 
                 //return if user did not touched ROI
-                if (!rect.contains(lastTouchedCoordinates) && !Gastly.isDetected()) return;
+                if (!rect.contains(lastTouchedCoordinates) && !Gastly.isDetected()) return false;
                 double x = rect.x;
                 double y = rect.y;
                 double width = rect.width;
@@ -146,9 +146,10 @@ public class ImageProcessing {
                 //apply overlay onto center of object containing the contour, depending on the type of object
                 //if (shape == "circle")
                 applyOverlay(frame, new Point(x , y), width , height , "Gastly");
+                return true;
             }
-
         }
+        return false;
     }
 
     //Get list of all contours in the frame

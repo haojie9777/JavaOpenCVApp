@@ -33,7 +33,6 @@ import org.opencv.imgproc.Imgproc;
 import java.io.IOException;
 import java.util.List;
 
-import com.example.ARCoreWithOpenCV.MyApplication; //for global context and variable
 
 public class MainActivity extends AppCompatActivity implements CameraBridgeViewBase.CvCameraViewListener2 {
 
@@ -165,6 +164,7 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
 
     //carry out frame processing here
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
+
         //Get a unmodified rgb copy of the original frame
         Mat originalFrame = inputFrame.rgba().clone();
         Imgproc.cvtColor(originalFrame, originalFrame,Imgproc.COLOR_RGBA2RGB);
@@ -189,11 +189,19 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
         //Get contours and draw them
         List<MatOfPoint> contours = imageProcessing.getContours(blurFrame);
 
+        //convert to bgr for easier processing in opencv
+        Imgproc.cvtColor(originalFrame,originalFrame,Imgproc.COLOR_RGB2BGR);
         if (lastTouchCoordinates.x != -1){
-            imageProcessing.processContours(contours,originalFrame,lastTouchCoordinates);
-        }
+            boolean result = imageProcessing.processContours(contours,originalFrame,lastTouchCoordinates);
+            if (!result){
+                lastTouchCoordinates.x = -1;
+                lastTouchCoordinates.y = -1;
+            }
 
+        }
         return originalFrame;
+
+
     }
 
     //Gets coordinate of user last touched point, convert to openCV 640x480, then stored it in memory
